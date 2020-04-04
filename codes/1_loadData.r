@@ -58,14 +58,16 @@ if(loadCaseData)
 if(loadR0posterior)
 {
   # --- read in R0 posterior
-  R0_plot <-read.csv(paste0("data/out_R0.csv"))
-  R0_dates <- read.csv(paste0('data/out_date.csv'))
+  # R0_plot <-read.csv(paste0("data/out_R0.csv"))
+  R0_plot <-read.csv(paste0("data/vn_R0.csv"))
+  # R0_dates <- read.csv(paste0('data/out_date.csv'))
+  R0_dates <- read.csv(paste0('data/vn_date.csv'))
   start_date <- as.Date(R0_dates[1,1]) # first case
   end_date <- as.Date(R0_dates[nrow(R0_dates),1]) # period to forecast ahead
   date_range <- seq.Date(start_date,end_date,1)
   
-  # extract all estimates from 01.01.2020 - 23.01.2020
-  R0_posterior <- R0_plot[which(date_range == as.Date("2020-01-01") ):which(date_range == as.Date("2020-01-23")),]
+  # extract all estimates from 20.03.2020 - 10.04.2020
+  R0_posterior <- R0_plot[which(date_range == as.Date("2020-03-20") ):which(date_range == as.Date("2020-04-10")),]
   range(R0_posterior)
   r0posterior = as.vector((unlist(R0_posterior)))
   par(mfrow=c(2,1))
