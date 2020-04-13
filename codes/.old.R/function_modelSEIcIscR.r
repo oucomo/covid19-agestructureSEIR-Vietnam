@@ -93,11 +93,11 @@ getbeta = function(R0t,constraints,gamma,p_age,calculate_transmission_probabilit
 
 
 # Children as infectious and as susceptible 
-simulateOutbreakSEIR = function(R0t,rho, R0tpostoutbreak = 1.5,dateEndIntenseIntervention, #date we begin relaxing intense intervention 
+simulateOutbreakSEIR = function(R0t,rho, R0tpostoutbreak = rnorm(1, 1.5, .5),dateEndIntenseIntervention, #date we begin relaxing intense intervention 
                             pWorkOpen = c(0.1,0.25,0.5,0.9), # pWorkOpen: proportion of the work force that is working (will be time-varying)
-                            dateStartSchoolClosure = as.Date('2020-01-15') , # cause winter term break 
-                            dateStartIntenseIntervention = as.Date('2020-01-23') , #Intense intervention: starts at Wuhan Lockdown
-                            dateStart = as.Date('2019-11-01'),POP = wuhanpop,numWeekStagger=c(2,4,6),pInfected=0.0002,durInf = 7,contacts_china=contacts)
+                            dateStartSchoolClosure = as.Date('2020-03-10') , # cause winter term break 
+                            dateStartIntenseIntervention = as.Date('2020-04-01') , #Intense intervention: starts at Wuhan Lockdown
+                            dateStart = as.Date('2020-03-10'),POP = wuhanpop,numWeekStagger=c(2,4,6),pInfected=0.000005,durInf = 7,contacts_china=contacts)
 {
   # debug dateStartIntenseIntervention = as.Date('2020-01-23')  
   # debug dateEndIntenseIntervention = as.Date('2020-03-01')
@@ -125,8 +125,8 @@ simulateOutbreakSEIR = function(R0t,rho, R0tpostoutbreak = 1.5,dateEndIntenseInt
   numSteps = tmax/dt;  	                                         # Total number of simulation time steps
   # dateStart = as.Date('2019-12-01')                            # included as a function argument 
   dateEnd = dateStart+(tmax-1)
-  dateStartCNY = as.Date('2020-01-25') 
-  dateEndCNY = as.Date('2020-01-31') 
+  # dateStartCNY = as.Date('2020-01-25') 
+  # dateEndCNY = as.Date('2020-01-31') 
   
   # Declare the state variables and related variables:
   # The values of these variables change over time
@@ -137,7 +137,8 @@ simulateOutbreakSEIR = function(R0t,rho, R0tpostoutbreak = 1.5,dateEndIntenseInt
   
   # Initialise the time-dependent variables, i.e. setting the values of the variables at time 0
   E[1,] = 0 
-  I[1,] =  pInfected*sum(N_age)/16#rpois(length(N_age),lambda = pInfected*sum(N_age)/16)  # 100 # Assign 100 infected person in each age group (TODO RELAX?)
+  # I[1,] =  pInfected*sum(N_age)/16#rpois(length(N_age),lambda = pInfected*sum(N_age)/16)  # 100 # Assign 100 infected person in each age group (TODO RELAX?)
+  I[1,] = round(pInfected*N_age, 0) #if is vector then will be multiplied element-wise
   R[1,] = 0 
   S[1,] = N_age-E[1,]-I[1,]-R[1,]
   H[1,] = 0                                  # Accumulator function for the infected cases (I) that get re
@@ -154,8 +155,9 @@ simulateOutbreakSEIR = function(R0t,rho, R0tpostoutbreak = 1.5,dateEndIntenseInt
   tStartIntenseIntervention = as.vector(dateStartIntenseIntervention - dateStart)+1 # for pw = 0.1
   tEndIntenseIntervention = as.vector(dateEndIntenseIntervention - dateStart)+1     # for pw = 0.1
   tRelaxIntervention1 = tEndIntenseIntervention + numWeekStagger[1]*7                               # for pw = 0.25
-  tRelaxIntervention2 = tEndIntenseIntervention + numWeekStagger[2]*7                               # for pw = 0.5
-  tRelaxIntervention3 = tEndIntenseIntervention + numWeekStagger[3]*7                               # for pw = 1
+  tRelaxIntervention2 = tRelaxIntervention1 + numWeekStagger[2]*7                               # for pw = 0.5
+  tRelaxIntervention3 = tRelaxIntervention2 + numWeekStagger[3]*7
+  # browser()                               # for pw = 1
   # tStartEndClosure = as.vector(dateEndSchoolClosure - dateStart)+1
   pwork = array(1,numSteps)
   pwork[1:tRelaxIntervention3] =c(rep(1,(tStartIntenseIntervention-0)), # dont know there is outbreak 
@@ -164,7 +166,7 @@ simulateOutbreakSEIR = function(R0t,rho, R0tpostoutbreak = 1.5,dateEndIntenseInt
                                   rep(pWorkOpen[3],(tRelaxIntervention2-tRelaxIntervention1)),
                                   rep(pWorkOpen[4],(tRelaxIntervention3-tRelaxIntervention2)))
   R0tpostoutbreak = R0t #overwrites the default reduction in R0 post-outbreak
-  
+  browser()
   beta = getbeta(R0t = R0t,constraints = constraintsIntervention$base,gamma = gamma,p_age = pop$p_age)
   if(pWorkOpen[2]<1) beta_postfirstwave = getbeta(R0t = R0tpostoutbreak,constraints = constraintsIntervention$base,gamma = gamma,p_age = pop$p_age)
   if(pWorkOpen[2]>=1) beta_postfirstwave = beta#getbeta(R0t = R0t[2],constraints = constraintsIntervention$base,gamma = gamma,p_age = pop$p_age)
@@ -220,6 +222,11 @@ simulateOutbreakSEIR = function(R0t,rho, R0tpostoutbreak = 1.5,dateEndIntenseInt
     numRecovery = gamma*I[stepIndex,]*dt;               # I to R
     numReported = numInfected*rho[stepIndex];           # I to H, but not removed from I (remember this is an accumulator function)
     
+    # ROUND to 4 digits
+    # numInfection = round(numInfection, 1)
+    # numInfected = round(numInfected, 1)
+    # numRecovery = round(numRecovery, 1)
+    # numReported = round(numReported, 1)
     # SEIR difference equations 
     S[stepIndex+1,] = S[stepIndex,]-numInfection;
     E[stepIndex+1,] = E[stepIndex,]+numInfection-numInfected;
@@ -236,16 +243,18 @@ simulateOutbreakSEIR = function(R0t,rho, R0tpostoutbreak = 1.5,dateEndIntenseInt
                 R0t = R0t,#rho = rho,
                 dateStart = dateStart, dateEnd = dateEnd,
                 dateStartIntenseIntervention = dateStartIntenseIntervention, dateEndIntenseIntervention = dateEndIntenseIntervention,
-                dateStartSchoolClosure = dateStartSchoolClosure, dateStartCNY = dateStartCNY,dateEndCNY = dateEndCNY)
+                dateStartSchoolClosure = dateStartSchoolClosure)
+                # , dateStartCNY = dateStartCNY,dateEndCNY = dateEndCNY)
   return(output)
 }
 
 # Children less infectious and as susceptible 
+# rho prob of symptomatic aka more infectious
 simulateOutbreakSEIcIscR = function(R0t,rho=c(rep(0.4,4),rep(0.8,12)), R0tpostoutbreak = 1.5,dateEndIntenseIntervention, #date we begin relaxing intense intervention 
                                     pWorkOpen = c(0.1,0.25,0.5,0.9), # pWorkOpen: proportion of the work force that is working (will be time-varying)
-                                    dateStartSchoolClosure = as.Date('2020-01-15') , # cause winter term break 
-                                    dateStartIntenseIntervention = as.Date('2020-01-23') , #Intense intervention: starts at Wuhan Lockdown
-                                    dateStart = as.Date('2019-11-01'),POP = wuhanpop,numWeekStagger=c(2,4,6),pInfected=0.0002,durInf = 7,contacts_china=contacts)
+                                    dateStartSchoolClosure = as.Date('2020-03-10') , # cause winter term break 
+                                    dateStartIntenseIntervention = as.Date('2020-04-01') , #Intense intervention: starts at Wuhan Lockdown
+                                    dateStart = as.Date('2020-03-10'),POP = wuhanpop,numWeekStagger=c(2,4,6),pInfected=0.00005,durInf = 7,contacts_china=contacts)
 {
   # debug dateStartIntenseIntervention = as.Date('2020-01-23')  
   # debug dateEndIntenseIntervention = as.Date('2020-03-01')
@@ -285,7 +294,7 @@ simulateOutbreakSEIcIscR = function(R0t,rho=c(rep(0.4,4),rep(0.8,12)), R0tpostou
   
   # Initialise the time-dependent variables, i.e. setting the values of the variables at time 0
   E[1,] = 0 
-  Ic[1,] =  pInfected*sum(N_age)/16#rpois(length(N_age),lambda = pInfected*sum(N_age)/16)  # 100 # Assign 100 infected person in each age group (TODO RELAX?)
+  Ic[1,] =  round(pInfected*N_age, 0)#rpois(length(N_age),lambda = pInfected*sum(N_age)/16)  # 100 # Assign 100 infected person in each age group (TODO RELAX?)
   Isc[1,] = 0 
   R[1,] = 0 
   S[1,] = N_age-E[1,]-Ic[1,]-Isc[1,]-R[1,]
@@ -302,8 +311,8 @@ simulateOutbreakSEIcIscR = function(R0t,rho=c(rep(0.4,4),rep(0.8,12)), R0tpostou
   tStartIntenseIntervention = as.vector(dateStartIntenseIntervention - dateStart)+1 # for pw = 0.1
   tEndIntenseIntervention = as.vector(dateEndIntenseIntervention - dateStart)+1     # for pw = 0.1
   tRelaxIntervention1 = tEndIntenseIntervention + numWeekStagger[1]*7                               # for pw = 0.25
-  tRelaxIntervention2 = tEndIntenseIntervention + numWeekStagger[2]*7                               # for pw = 0.5
-  tRelaxIntervention3 = tEndIntenseIntervention + numWeekStagger[3]*7                               # for pw = 1
+  tRelaxIntervention2 = tRelaxIntervention1 + numWeekStagger[2]*7                               # for pw = 0.5
+  tRelaxIntervention3 = tRelaxIntervention2 + numWeekStagger[3]*7                               # for pw = 1
   # tStartEndClosure = as.vector(dateEndSchoolClosure - dateStart)+1
   pwork = array(1,numSteps)
   pwork[1:tRelaxIntervention3] =c(rep(1,(tStartIntenseIntervention-0)), # dont know there is outbreak 

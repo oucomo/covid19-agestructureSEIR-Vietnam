@@ -1,2 +1,7 @@
 .vscode/
 outputs/
+plots/
+.Rproj.user
+.Rdata
+.Rhistory
+error.txt

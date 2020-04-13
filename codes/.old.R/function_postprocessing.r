@@ -1,11 +1,13 @@
 summariseSimulations = function(VAR,CI,SIMS)
 {
+  # browser()
   temp = lapply(SIMS,FUN = function(x) rowSums(x[[VAR]]))
   temp1 = do.call(cbind.data.frame, temp)
   var_p_median = apply(temp1,1,function(x) quantile(x,0.5))
+  var_p_mean = apply(temp1, 1, function(x) mean(x))
   var_p_lci = apply(temp1,1,function(x) quantile(x,(1-CI/100)/2))
   var_p_uci = apply(temp1,1,function(x) quantile(x,1-(1-CI/100)/2))
-  SUMMARY = list(median = var_p_median,lci = var_p_lci,uci=var_p_uci)
+  SUMMARY = list(median = var_p_median, mean = var_p_mean, lci = var_p_lci,uci=var_p_uci)
   rm(temp,temp1,var_p_median,var_p_lci,var_p_uci)
   
   
