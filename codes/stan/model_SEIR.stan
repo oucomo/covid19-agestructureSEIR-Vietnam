@@ -229,9 +229,9 @@ parameters{
 }
 
 transformed parameters{
-    real R0 = exp(lnR0);
-    real R0postoutbreak = exp(lnR0postoutbreak);
-    matrix[nDaySim, nAgeGroups] SEIR[7] = simulate_SEIR(POP, initialI, R0, R0postoutbreak, rho,
+    // real R0 = exp(lnR0);
+    // real R0postoutbreak = exp(lnR0postoutbreak);
+    matrix[nDaySim, nAgeGroups] SEIR[7] = simulate_SEIR(POP, initialI, exp(lnR0), exp(lnR0postoutbreak), rho,
         nDaySim, DurInf, DurLat, contact_matrix, 
         tStartIntenseIntervention, nIntenseStages, IntenseStageWeeks, pWorkOpen, 
         tCloseSchool, tReopenSchool);
@@ -240,7 +240,7 @@ transformed parameters{
 model{
     lnR0 ~ normal(log(mean_R0), s_R0);
     lnR0postoutbreak ~ normal(log(mean_R0postoutbreak), s_R0postoutbreak);
-    DurInf ~ exponential(mean_DurInf)T[1,  ];
+    DurInf ~ exponential(mean_DurInf)T[1,30];
     DurLat ~ exponential(mean_DurLat)T[1,30];
 }
 
