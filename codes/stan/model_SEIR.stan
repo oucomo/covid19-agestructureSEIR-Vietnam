@@ -222,10 +222,10 @@ data{
 }
 
 parameters{
-    real lnR0;
-    real lnR0postoutbreak;
-    real<lower=1> DurInf; 
-    real<lower=1> DurLat;
+    real<lower=0, upper=2> lnR0;
+    real<upper=2> lnR0postoutbreak;
+    real<lower=1, upper=30> DurInf; 
+    real<lower=1, upper=30> DurLat;
 }
 
 transformed parameters{
@@ -238,25 +238,9 @@ transformed parameters{
 }
 
 model{
-    lnR0 ~ normal(log(mean_R0), s_R0);
-    lnR0postoutbreak ~ normal(log(mean_R0postoutbreak), s_R0postoutbreak);
-    DurInf ~ exponential(mean_DurInf)T[1,30];
-    DurLat ~ exponential(mean_DurLat)T[1,30];
+    lnR0 ~ normal(log(mean_R0), s_R0)T[0,2];
+    lnR0postoutbreak ~ normal(log(mean_R0postoutbreak), s_R0postoutbreak)T[,2];
+    DurInf ~ exponential(1.0/mean_DurInf)T[1,30];
+    DurLat ~ exponential(1.0/mean_DurLat)T[1,30];
 }
 
-generated quantities{
-    
-
-    // matrix[nDaySim,nAgeGroups] S;
-    // matrix[nDaySim,nAgeGroups] E;
-    // matrix[nDaySim,nAgeGroups] I;
-    // matrix[nDaySim,nAgeGroups] R; 
-    // matrix[nDaySim,nAgeGroups] lambda;
-    // matrix[nDaySim,nAgeGroups] incidence;
-    // S = SEIR[1];
-    // E = SEIR[2];
-    // I = SEIR[3];
-    // R = SEIR[4];
-    // lambda = SEIR[5];
-    // incidence = SEIR[6]
-}
