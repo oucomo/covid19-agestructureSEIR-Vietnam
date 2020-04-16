@@ -126,7 +126,7 @@ functions{
         matrix[nAgeGroups, nAgeGroups] CONTRAINTS[4];
         matrix[nAgeGroups, nAgeGroups] C;
 
-        matrix[nSteps, nAgeGroups] output[7];
+        matrix[nSteps, nAgeGroups] output[8];
         
         // Compartments of the models
         S = rep_matrix(0, nSteps, nAgeGroups);
@@ -180,12 +180,12 @@ functions{
                 CONTRAINTS[4]*contact_matrix[4];
 
             // Calculate the force of infection
-            lambda[s,:] = time[s] < tStopIntenseIntervention ? (beta*(C*(Ic[s,:]./POP' + theta*Isc[s,:]./POP)'))' : (beta_postfirstwave*(C*(Ic[s,:]./POP' + theta*Isc[s,:]./POP)'))';
+            lambda[s,:] = time[s] < tStopIntenseIntervention ? (beta*(C*(Ic[s,:]./POP' + theta*(Isc[s,:]./POP'))'))' : (beta_postfirstwave*(C*(Ic[s,:]./POP' + theta*(Isc[s,:]./POP'))'))';
 
             // calculate the number of infections and recoveries between time t and t+dt
             numStoE = lambda[s,:].*S[s,:]*dt; // S to E
-            numEtoIc = alpha*rho*E[s,:]*dt;  
-            numEtoIsc = alpha*(1-rho)*E[s,:]*dt;             // E to I
+            numEtoIc = alpha* (rho' .* E[s,:]) *dt;  
+            numEtoIsc = alpha* ((1-rho)' .* E[s,:]) *dt;             // E to I
             numIctoR = gamma*Ic[s,:]*dt;               // I to R
             numIsctoR = gamma/theta*Isc[s,:]*dt;
             // numReported = numInfected*rho[s];           // I to H, but not removed from I (remember this is an accumulator function)
@@ -201,7 +201,7 @@ functions{
             time[s+1] = time[s]+dt;
         }
 
-        output = {S, E, Ic, Isc, R, lambda, incidence, reported};
+        output = {S, E, Ic, Isc, R, lambda, incidence, subclinical};
         return output;
     }
 }
@@ -217,7 +217,7 @@ data{
     vector<lower=0>[nAgeGroups] POP;
     vector<lower=0>[nAgeGroups] initialI;
     matrix[nAgeGroups, nAgeGroups] contact_matrix[4];
-    vector<lower=0, upper=1>[nDaySim] rho;
+    vector<lower=0, upper=1>[nAgeGroups] rho;
 
     int<lower=0> tStartIntenseIntervention;
     int<lower=1> nIntenseStages;
@@ -239,7 +239,7 @@ parameters{
 transformed parameters{
     // real R0 = exp(lnR0);
     // real R0postoutbreak = exp(lnR0postoutbreak);
-    matrix[nDaySim, nAgeGroups] SEIcIscR[7] = simulate_SEIR(POP, initialI, exp(lnR0), exp(lnR0postoutbreak), rho, theta,
+    matrix[nDaySim, nAgeGroups] SEIcIscR[8] = simulate_SEIcIscR(POP, initialI, exp(lnR0), exp(lnR0postoutbreak), rho, theta,
         nDaySim, DurInf, DurLat, contact_matrix, 
         tStartIntenseIntervention, nIntenseStages, IntenseStageWeeks, pWorkOpen, 
         tCloseSchool, tReopenSchool);
@@ -250,6 +250,6 @@ model{
     lnR0postoutbreak ~ normal(log(mean_R0postoutbreak), s_R0postoutbreak);
     DurInf ~ exponential(1/mean_DurInf)T[1,30];
     DurLat ~ exponential(1/mean_DurLat)T[1,30];
-    theta ~ normal(0.25, 0.5)T[0,1]
+    theta ~ normal(0.25, 0.5)T[0,1];
 }
 
