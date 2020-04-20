@@ -90,17 +90,18 @@ functions{
 
     matrix[] simulate_SEIcIscR(vector POP, vector initialI, //initial I statified by age group 
         real R0, real R0postoutbreak, vector rho, real theta, //R0 and R0 post-oubreak
-        int nDaySim, real DurInf, real DurLat, matrix[] contact_matrix, 
+        int nDaySim, real DurInf, real DurInfsc, real DurLat, matrix[] contact_matrix, 
         int tStartIntenseIntervention, int nIntenseStages, int[] IntenseStagesWeeks, real[] pWorkOpen, 
         int tCloseSchool, int tReopenSchool)
     {
         real gamma = 1.0-exp(-1.0/DurInf);                                       //removal rate
-        real gamma_sc = 1.0-exp(1.0/(DurInf*theta));
+        // real gamma_sc = 1.0-exp(1.0/DurInfsc);
+        real gamma_sc = gamma;
         real alpha = 1.0-exp(-1.0/DurLat);                                       //exposure rate
         int tmax = nDaySim;
         int dt = 1;
         int nSteps = nDaySim;
-        int tStopIntenseIntervention = tStartIntenseIntervention + sum(IntenseStagesWeeks);
+        int tStopIntenseIntervention = tStartIntenseIntervention + sum(IntenseStagesWeeks)*7;
 
         int nAgeGroups = dims(POP)[1];
         row_vector[nAgeGroups] numStoE;
@@ -122,7 +123,9 @@ functions{
         vector[nSteps] time;
         vector[nSteps] pWork;
         real beta;
+        real betasc;
         real beta_postfirstwave;
+        real betasc_postfirstwave;
         matrix[nAgeGroups, nAgeGroups] constraintsIntervention[6,4];
         matrix[nAgeGroups, nAgeGroups] CONTRAINTS[4];
         matrix[nAgeGroups, nAgeGroups] C;
@@ -148,13 +151,15 @@ functions{
         // Interventions def
         pWork = rep_vector(1, nSteps);
         for (i in 1:dims(IntenseStagesWeeks)[1]){
-            int a = i==1 ? tStartIntenseIntervention : tStartIntenseIntervention + sum(IntenseStagesWeeks[1:(i-1)])*7;
+            int a = i==1 ? tStartIntenseIntervention : (tStartIntenseIntervention + sum(IntenseStagesWeeks[1:(i-1)])*7);
             pWork[a:(a+IntenseStagesWeeks[i]*7-1)] = rep_vector(pWorkOpen[i], IntenseStagesWeeks[i]*7);
             // pWork = append_row(pWork, rep_vector(pWorkOpen[i], IntenseStagesWeeks[i]));
         }
 
         beta = get_beta(R0, nAgeGroups, gamma, 1, POP, contact_matrix);
+        betasc = get_beta(R0, nAgeGroups, gamma_sc, 1, POP, contact_matrix);
         beta_postfirstwave = (pWorkOpen[2]<1) ? get_beta(R0postoutbreak, nAgeGroups, gamma, 1, POP, contact_matrix) : beta;
+        betasc_postfirstwave = (pWorkOpen[2]<1) ? get_beta(R0postoutbreak, nAgeGroups, gamma_sc, 1, POP, contact_matrix) : betasc;
         for (s in 1:(nSteps-1)){
             constraintsIntervention = scale_contact(pWork[s], nAgeGroups);
             
@@ -181,15 +186,15 @@ functions{
                 CONTRAINTS[4]*contact_matrix[4];
 
             // Calculate the force of infection
-            lambda[s,:] = time[s] < tStopIntenseIntervention ? (beta*(C*(Ic[s,:]'./POP + theta*(Isc[s,:]'./POP))))' : (beta_postfirstwave*(C*(Ic[s,:]'./POP + theta*(Isc[s,:]'./POP))))';
+            // lambda[s,:] = time[s] < tStopIntenseIntervention ? (beta*(C*(Ic[s,:]'./POP + theta*(Isc[s,:]'./POP))))' : (beta_postfirstwave*(C*(Ic[s,:]'./POP + theta*(Isc[s,:]'./POP))))';
+            lambda[s,:] = time[s] < tStopIntenseIntervention ? (beta*(C*(Ic[s,:]'./POP)) + betasc*(C*(theta*Isc[s,:]'./POP)))' : (beta_postfirstwave*(C*Ic[s,:]'./POP) + betasc_postfirstwave*(C*theta*(Isc[s,:]'./POP)))';
 
             // calculate the number of infections and recoveries between time t and t+dt
             numStoE = lambda[s,:].*S[s,:]*dt; // S to E
-            numEtoIc = alpha* (rho' .* E[s,:]) *dt;  
+            numEtoIc = alpha* (rho' .* E[s,:])*dt;  
             numEtoIsc = alpha* ((1-rho)' .* E[s,:]) *dt;             // E to I
             numIctoR = gamma*Ic[s,:]*dt;               // I to R
             numIsctoR = gamma_sc*Isc[s,:]*dt;
-            // numReported = numInfected*rho[s];           // I to H, but not removed from I (remember this is an accumulator function)
     
             S[s+1,:] = S[s,:]-numStoE;
             E[s+1,:] = E[s,:]+numStoE-numEtoIc-numEtoIsc;
@@ -208,9 +213,10 @@ functions{
 }
 
 data{
-    int nDaySim;                                                 //step size
-    real mean_DurInf;
-    real mean_DurLat;
+    int<lower=1> nDaySim;                                                 //step size
+    real<lower=1> mean_DurInf;
+    real<lower=1> mean_DurInfsc;
+    real<lower=1> mean_DurLat;
     real<lower=0> mean_R0; real<lower=0> s_R0;
     real<lower=0> mean_R0postoutbreak; real<lower=0> s_R0postoutbreak;
 
@@ -233,27 +239,24 @@ parameters{
     real<lower=0, upper=2> lnR0;
     real lnR0postoutbreak;
     real<lower=1> DurInf; 
+    real<lower=1> DurInfsc;
     real<lower=1> DurLat;
     real probittheta; //infectious rate-gamma rate
 }
 
-transformed parameters{
-    // real R0 = exp(lnR0);
-    // real R0postoutbreak = exp(lnR0postoutbreak);
-    
-}
 
 model{
     lnR0 ~ normal(log(mean_R0), s_R0)T[0,2];
     lnR0postoutbreak ~ normal(log(mean_R0postoutbreak), s_R0postoutbreak);
-    DurInf ~ normal(mean_DurInf, 2)T[1,];
-    DurLat ~ exponential(1/mean_DurLat)T[1,];
-    probittheta ~ normal(-0.68, 1);
+    DurInf ~ exponential(1.0/mean_DurInf)T[1,]; 
+    DurInfsc ~ exponential(1.0/mean_DurInfsc)T[1,]; 
+    DurLat ~ exponential(1.0/mean_DurLat)T[1,];
+    probittheta ~ normal(-0.68, 1); //mean theta= .25
 }
 
 generated quantities{
     matrix[nDaySim, nAgeGroups] SEIR[8] = simulate_SEIcIscR(POP, initialI, exp(lnR0), exp(lnR0postoutbreak), rho, Phi(probittheta),
-        nDaySim, DurInf, DurLat, contact_matrix, 
+        nDaySim, DurInf, DurInfsc, DurLat, contact_matrix, 
         tStartIntenseIntervention, nIntenseStages, IntenseStageWeeks, pWorkOpen, 
         tCloseSchool, tReopenSchool);
 }

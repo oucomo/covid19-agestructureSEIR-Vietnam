@@ -17,12 +17,12 @@ sim_dat <-
         initialI = initialI,
         contact_matrix = contacts[-5], #delete "all"
         rho = rho,
-        tStartIntenseIntervention = 22,
-        nIntenseStages = 4,
-        IntenseStageWeeks = c(4,2,4,4),
-        pWorkOpen = c(.1, .25, .5, .75),
-        tCloseSchool = 1,
-        tReopenSchool = 6*7
+        tStartIntenseIntervention = 99999,
+        nIntenseStages = 2,
+        IntenseStageWeeks = c(0,0),
+        pWorkOpen = c(1,1),
+        tCloseSchool = 0,
+        tReopenSchool = 0
     )
 
 library(rstan)
@@ -33,6 +33,7 @@ eigCalc <- tools::file_path_as_absolute('codes/stan/eigenCalc.hpp')
 SEIR_sim <- stan_model('codes/stan/model_SEIR.stan',
     allow_undefined = TRUE,
     includes = paste0('\n#include "', eigCalc, '"\n'))
-SEIR_res <- sampling(SEIR_sim, data = sim_dat, iter=nSim, chains=4, warmup=1000, seed=296, control=list(adapt_delta=0.8))
+SEIR_res <- sampling(SEIR_sim, data = sim_dat, iter=nSim, chains=1, warmup=1000, seed=296, control=list(adapt_delta=0.8))
 SEIR_ext <- extract_SEIR(SEIR_res)
-
+ggplot(SEIR_ext, 'I', 1, .f=mean)
+ggplot(SEIR_ext, 'I', 6, .f=mean, .t_range=c(0,20))

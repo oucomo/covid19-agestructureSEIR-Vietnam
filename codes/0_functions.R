@@ -41,7 +41,7 @@ ggplot.SEIR_obj <- function(obj, group, ci=TRUE){
 #Plotting method for all
 ggplot.SEIR_fit <- function(obj, what, group, ci=TRUE,.quantile = c(2.5, 97.5), .t_range = c(0, Inf), .f=mean){
     require(ggplot2)
-    fun <- if ('I' %in% names(obj)) ci_SEIR else ci_SEIcIscR
+    fun <- if (length(obj) == 6) ci_SEIR else ci_SEIcIscR
     tab <- lapply(what, function(w){
         this <- as.data.frame.list(fun(obj, w, group,.f=.f, .quantile=.quantile))
         this$t <- seq_len(nrow(this))
