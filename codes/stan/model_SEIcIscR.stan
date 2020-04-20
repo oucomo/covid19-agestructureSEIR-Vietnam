@@ -95,6 +95,7 @@ functions{
         int tCloseSchool, int tReopenSchool)
     {
         real gamma = 1.0-exp(-1.0/DurInf);                                       //removal rate
+        real gamma_sc = 1.0-exp(1.0/(DurInf*theta));
         real alpha = 1.0-exp(-1.0/DurLat);                                       //exposure rate
         int tmax = nDaySim;
         int dt = 1;
@@ -180,14 +181,14 @@ functions{
                 CONTRAINTS[4]*contact_matrix[4];
 
             // Calculate the force of infection
-            lambda[s,:] = time[s] < tStopIntenseIntervention ? (beta*(C*(Ic[s,:]./POP' + theta*(Isc[s,:]./POP'))'))' : (beta_postfirstwave*(C*(Ic[s,:]./POP' + theta*(Isc[s,:]./POP'))'))';
+            lambda[s,:] = time[s] < tStopIntenseIntervention ? (beta*(C*(Ic[s,:]'./POP + theta*(Isc[s,:]'./POP))))' : (beta_postfirstwave*(C*(Ic[s,:]'./POP + theta*(Isc[s,:]'./POP))))';
 
             // calculate the number of infections and recoveries between time t and t+dt
             numStoE = lambda[s,:].*S[s,:]*dt; // S to E
             numEtoIc = alpha* (rho' .* E[s,:]) *dt;  
             numEtoIsc = alpha* ((1-rho)' .* E[s,:]) *dt;             // E to I
             numIctoR = gamma*Ic[s,:]*dt;               // I to R
-            numIsctoR = gamma/theta*Isc[s,:]*dt;
+            numIsctoR = gamma_sc*Isc[s,:]*dt;
             // numReported = numInfected*rho[s];           // I to H, but not removed from I (remember this is an accumulator function)
     
             S[s+1,:] = S[s,:]-numStoE;
@@ -229,27 +230,31 @@ data{
 }
 
 parameters{
-    real lnR0;
+    real<lower=0, upper=2> lnR0;
     real lnR0postoutbreak;
     real<lower=1> DurInf; 
     real<lower=1> DurLat;
-    real<lower=0, upper=1> theta; //infectious rate-gamma rate
+    real probittheta; //infectious rate-gamma rate
 }
 
 transformed parameters{
     // real R0 = exp(lnR0);
     // real R0postoutbreak = exp(lnR0postoutbreak);
-    matrix[nDaySim, nAgeGroups] SEIcIscR[8] = simulate_SEIcIscR(POP, initialI, exp(lnR0), exp(lnR0postoutbreak), rho, theta,
-        nDaySim, DurInf, DurLat, contact_matrix, 
-        tStartIntenseIntervention, nIntenseStages, IntenseStageWeeks, pWorkOpen, 
-        tCloseSchool, tReopenSchool);
+    
 }
 
 model{
     lnR0 ~ normal(log(mean_R0), s_R0)T[0,2];
     lnR0postoutbreak ~ normal(log(mean_R0postoutbreak), s_R0postoutbreak);
-    DurInf ~ exponential(1/mean_DurInf)T[1,30];
-    DurLat ~ exponential(1/mean_DurLat)T[1,30];
-    theta ~ normal(0.25, 0.5)T[0,1];
+    DurInf ~ normal(mean_DurInf, 2)T[1,];
+    DurLat ~ exponential(1/mean_DurLat)T[1,];
+    probittheta ~ normal(-0.68, 1);
+}
+
+generated quantities{
+    matrix[nDaySim, nAgeGroups] SEIR[8] = simulate_SEIcIscR(POP, initialI, exp(lnR0), exp(lnR0postoutbreak), rho, Phi(probittheta),
+        nDaySim, DurInf, DurLat, contact_matrix, 
+        tStartIntenseIntervention, nIntenseStages, IntenseStageWeeks, pWorkOpen, 
+        tCloseSchool, tReopenSchool);
 }
 

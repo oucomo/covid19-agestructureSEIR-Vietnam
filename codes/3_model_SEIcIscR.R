@@ -1,4 +1,4 @@
-nSim <- 3000
+nSim <- 5000
 nDaySim <- 366
 POP <- (sum(wuhanpop$popage))*wuhanpop$propage 
 initialI <- c(rep(0,4), rep(1, 10), 0, 0) 
@@ -7,7 +7,7 @@ sim_dat <-
   list(
     nDaySim = nDaySim,
     mean_DurInf = 10,
-    mean_DurLat = 7,
+    mean_DurLat = 4,
     mean_R0 = 2,
     s_R0 = .4,
     mean_R0postoutbreak = 1.5,
@@ -33,6 +33,6 @@ eigCalc <- tools::file_path_as_absolute('codes/stan/eigenCalc.hpp')
 SEIcIscR_sim <- stan_model('codes/stan/model_SEIcIscR.stan',
                        allow_undefined = TRUE,
                        includes = paste0('\n#include "', eigCalc, '"\n'))
-SEIR_res <- sampling(SEIR_sim, data = sim_dat, iter=nSim, chains=4, warmup=1000, seed=296, control=list(adapt_delta=0.8))
-SEIR_ext <- extract_SEIR(SEIR_res)
+SEIcIscR_res <- sampling(SEIcIscR_sim, data = sim_dat, iter=nSim, chains=1, warmup=1000, seed=296, control=list(adapt_delta=0.8))
+SEIcIscR_ext <- extract_SEIR(SEIcIscR_res)
 

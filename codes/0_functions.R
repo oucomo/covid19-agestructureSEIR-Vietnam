@@ -35,14 +35,15 @@ ggplot.SEIR_obj <- function(obj, group, ci=TRUE){
     ggplot2::geom_line(ggplot2::aes(y=obj$mean[group,]))
     
     if (!ci) return(p)
-    p + ggplot2::geom_ribbon(ggplot2::aes(ymin=obj$lower[group,], ymax=obj$upper[group,]), alpha=.5)
+    p + ggplot2::geom_ribbon(ggplot2::aes(ymin=obj$lower[group,], ymax=obj$upper[group,]), alpha=.2)
 }
 
 #Plotting method for all
 ggplot.SEIR_fit <- function(obj, what, group, ci=TRUE,.quantile = c(2.5, 97.5), .t_range = c(0, Inf), .f=mean){
     require(ggplot2)
+    fun <- if ('I' %in% names(obj)) ci_SEIR else ci_SEIcIscR
     tab <- lapply(what, function(w){
-        this <- as.data.frame.list(ci_SEIR(obj, w, group,.f=.f, .quantile=.quantile))
+        this <- as.data.frame.list(fun(obj, w, group,.f=.f, .quantile=.quantile))
         this$t <- seq_len(nrow(this))
         this$compartment <- w
         this
@@ -54,7 +55,7 @@ ggplot.SEIR_fit <- function(obj, what, group, ci=TRUE,.quantile = c(2.5, 97.5), 
     p <- ggplot(data=tab, aes(x=t))+geom_line(aes(y=mean, color=compartment))+ylab('cases')
 
     if (!ci) return(p)
-    p + geom_ribbon(aes(ymin=lower,ymax=upper, fill=compartment), alpha=.5)
+    p + geom_ribbon(aes(ymin=lower,ymax=upper, fill=compartment), alpha=.2)
 }
 
 
