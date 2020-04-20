@@ -5,3 +5,4 @@ plots/
 .Rdata
 .Rhistory
 error.txt
+codes/stan_utility.R

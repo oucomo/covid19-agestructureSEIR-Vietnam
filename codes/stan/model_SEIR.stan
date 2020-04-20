@@ -99,7 +99,7 @@ functions{
         int tmax = nDaySim;
         int dt = 1;
         int nSteps = nDaySim;
-        int tStopIntenseIntervention = tStartIntenseIntervention + sum(IntenseStagesWeeks);
+        int tStopIntenseIntervention = tStartIntenseIntervention + sum(IntenseStagesWeeks)*7;
 
         int nAgeGroups = dims(POP)[1];
         row_vector[nAgeGroups] numExposed;
@@ -213,7 +213,7 @@ data{
     vector<lower=0, upper=1>[nDaySim] rho;
 
     int<lower=0> tStartIntenseIntervention;
-    int<lower=1> nIntenseStages;
+    int<lower=0> nIntenseStages;
     int<lower=0> IntenseStageWeeks[nIntenseStages];
     real<lower=0, upper=1> pWorkOpen[nIntenseStages];
 
@@ -224,23 +224,24 @@ data{
 parameters{
     real<lower=0, upper=2> lnR0;
     real<upper=2> lnR0postoutbreak;
+    // real<lower=0> R0;
+    // real<lower=0> R0po
     real<lower=1, upper=30> DurInf; 
     real<lower=1, upper=30> DurLat;
 }
 
-transformed parameters{
-    // real R0 = exp(lnR0);
-    // real R0postoutbreak = exp(lnR0postoutbreak);
-    matrix[nDaySim, nAgeGroups] SEIR[7] = simulate_SEIR(POP, initialI, exp(lnR0), exp(lnR0postoutbreak), rho,
-        nDaySim, DurInf, DurLat, contact_matrix, 
-        tStartIntenseIntervention, nIntenseStages, IntenseStageWeeks, pWorkOpen, 
-        tCloseSchool, tReopenSchool);
-}
 
 model{
     lnR0 ~ normal(log(mean_R0), s_R0)T[0,2];
     lnR0postoutbreak ~ normal(log(mean_R0postoutbreak), s_R0postoutbreak)T[,2];
-    DurInf ~ exponential(1.0/mean_DurInf)T[1,30];
-    DurLat ~ exponential(1.0/mean_DurLat)T[1,30];
+    DurInf ~ exponential(1.0/mean_DurInf)T[1,]; //Marc said the serial interval is normally distributed?
+    DurLat ~ exponential(1.0/mean_DurLat)T[1,];
+}
+
+generated quantities{
+     matrix[nDaySim, nAgeGroups] SEIR[7] = simulate_SEIR(POP, initialI, exp(lnR0), exp(lnR0postoutbreak), rho,
+        nDaySim, DurInf, DurLat, contact_matrix, 
+        tStartIntenseIntervention, nIntenseStages, IntenseStageWeeks, pWorkOpen, 
+        tCloseSchool, tReopenSchool);
 }
 
