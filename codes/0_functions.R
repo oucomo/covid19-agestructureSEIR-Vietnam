@@ -39,19 +39,31 @@ ggplot.SEIR_obj <- function(obj, group, ci=TRUE){
 }
 
 #Plotting method for all
-ggplot.SEIR_fit <- function(obj, what, group, ci=TRUE,.quantile = c(2.5, 97.5), .t_range = c(0, Inf), .f=mean){
+ggplot.SEIR_fit <- function(obj, what, group, ci=TRUE, .scale = I, .quantile = c(2.5, 97.5), .t_range = c(0, Inf), .f=mean){
     require(ggplot2)
     fun <- if (length(obj) == 6) ci_SEIR else ci_SEIcIscR
-    tab <- lapply(what, function(w){
-        this <- as.data.frame.list(fun(obj, w, group,.f=.f, .quantile=.quantile))
-        this$t <- seq_len(nrow(this))
-        this$compartment <- w
-        this
-    })
-    tab <- do.call(rbind, tab)
+    tablist <- lapply(group, function(g){
+        do.call(rbind,
+                lapply(what, function(w){
+                    this <- as.data.frame.list(fun(obj, w, g,.f=.f, .quantile=.quantile))
+                    this$t <- seq_len(nrow(this))
+                    this$compartment <- w
+                    this
+                }))})
+    # browser()
+    tab <- Reduce(function(x,y) {
+                     as.matrix(x[,!colnames(x)%in%c('t', 'compartment')])+as.matrix(y[!colnames(y)%in%c('t', 'compartment')])
+                     },
+                     tablist, accumulate=FALSE)
+    tab <- as.data.frame(tab)
+    tab$t <- tablist[[1]]$t
+    tab$compartment <- tablist[[1]]$compartment
     # browser()
     # print(head(tab))
     tab <- subset(tab, t >= min(.t_range) & t <= max(.t_range))
+    tab$mean <- .scale(tab$mean)
+    tab$lower <-.scale(tab$lower)
+    tab$upper <- .scale(tab$upper)
     p <- ggplot(data=tab, aes(x=t))+geom_line(aes(y=mean, color=compartment))+ylab('cases')
 
     if (!ci) return(p)
